@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSetupLocked() {
+      return exists(/databases/$(database)/documents/system_lock/admin_setup);
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.email == "subhasishdas1001@gmail.com" && request.auth.token.email_verified == true) ||
+        (isSetupLocked() &&
+         get(/databases/$(database)/documents/system_lock/admin_setup).data.adminUid == request.auth.uid &&
+         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isValidSystemLock(data) {
+      return data.keys().hasAll(['initialized', 'adminUid', 'createdAt']) &&
+      data.keys().hasOnly(['initialized', 'adminUid', 'createdAt']) &&
+      data.initialized == true &&
+      data.adminUid is string &&
+      data.adminUid == request.auth.uid &&
+      data.adminUid.size() >= 1 && data.adminUid.size() <= 128 &&
+      data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['uid', 'role', 'createdAt']) &&
+      data.keys().hasOnly(['uid', 'role', 'createdAt']) &&
+      data.uid is string && data.uid == request.auth.uid &&
+      data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.role == 'admin' &&
+      data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
+    function isValidSiteConfig(data) {
+      return data.keys().hasAll([
+        'heroJson', 'aboutJson', 'servicesJson', 'skillsJson', 'processJson',
+        'contactJson', 'socialJson', 'appearanceJson', 'seoJson',
+        'navigationJson', 'footerJson', 'updatedAt', 'updatedBy'
+      ]) &&
+      data.keys().hasOnly([
+        'heroJson', 'aboutJson', 'servicesJson', 'skillsJson', 'processJson',
+        'contactJson', 'socialJson', 'appearanceJson', 'seoJson',
+        'navigationJson', 'footerJson', 'updatedAt', 'updatedBy'
+      ]) &&
+      data.heroJson is string && data.heroJson.size() <= 450000 &&
+      data.aboutJson is string && data.aboutJson.size() <= 450000 &&
+      data.servicesJson is string && data.servicesJson.size() <= 100000 &&
+      data.skillsJson is string && data.skillsJson.size() <= 100000 &&
+      data.processJson is string && data.processJson.size() <= 100000 &&
+      data.contactJson is string && data.contactJson.size() <= 100000 &&
+      data.socialJson is string && data.socialJson.size() <= 100000 &&
+      data.appearanceJson is string && data.appearanceJson.size() <= 250000 &&
+      data.seoJson is string && data.seoJson.size() <= 250000 &&
+      data.navigationJson is string && data.navigationJson.size() <= 100000 &&
+      data.footerJson is string && data.footerJson.size() <= 150000 &&
+      data.updatedAt is string && data.updatedAt.size() <= 60 &&
+      data.updatedBy is string && data.updatedBy.size() <= 200;
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll([
+        'id', 'title', 'cat', 'shortDesc', 'desc', 'img', 'gallery',
+        'url', 'tags', 'year', 'featured', 'order', 'status',
+        'seoTitle', 'seoDesc', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'title', 'cat', 'shortDesc', 'desc', 'img', 'gallery',
+        'url', 'tags', 'year', 'featured', 'order', 'status',
+        'seoTitle', 'seoDesc', 'updatedAt'
+      ]) &&
+      data.id is string && data.id.size() >= 1 && data.id.size() <= 120 &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+      data.cat is string && data.cat.size() <= 200 &&
+      data.shortDesc is string && data.shortDesc.size() <= 1000 &&
+      data.desc is string && data.desc.size() <= 20000 &&
+      data.img is string && data.img.size() <= 500000 &&
+      data.gallery is list && data.gallery.size() <= 12 &&
+      data.url is string && data.url.size() <= 1000 &&
+      data.tags is list && data.tags.size() <= 30 &&
+      data.year is string && data.year.size() <= 20 &&
+      data.featured is bool &&
+      data.order is number &&
+      data.status in ['published', 'draft'] &&
+      data.seoTitle is string && data.seoTitle.size() <= 200 &&
+      data.seoDesc is string && data.seoDesc.size() <= 600 &&
+      data.updatedAt is string && data.updatedAt.size() <= 60;
+    }
+
+    function isValidActivityLog(data) {
+      return data.keys().hasAll(['action', 'section', 'actorEmail', 'createdAt']) &&
+      data.keys().hasOnly(['action', 'section', 'actorEmail', 'createdAt']) &&
+      data.action is string && data.action.size() >= 1 && data.action.size() <= 300 &&
+      data.section is string && data.section.size() >= 1 && data.section.size() <= 100 &&
+      data.actorEmail is string && data.actorEmail.size() <= 200 &&
+      data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
+    // Singleton One-Time Admin Setup Lock: can only be created ONCE when it does not exist
+    match /system_lock/{lockId} {
+      allow get: if lockId == 'admin_setup';
+      allow list: if false;
+      allow create: if isAuthenticated() &&
+                    lockId == 'admin_setup' &&
+                    !isSetupLocked() &&
+                    isValidSystemLock(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // Admin Users: can only be created during the one-time setup or by an existing verified admin
+    match /admins/{uid} {
+      allow get: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isAuthenticated() &&
+                    request.auth.uid == uid &&
+                    (!isSetupLocked() || isAdmin()) &&
+                    isValidAdminUser(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /site_published/{docId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin() && isValidSiteConfig(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /site_draft/{docId} {
+      allow get, list: if isAdmin();
+      allow create, update: if isAdmin() && isValidSiteConfig(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow get, list: if resource.data.status == 'published' || isAdmin();
+      allow create, update: if isAdmin() && isValidProject(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /activity_logs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin() && isValidActivityLog(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

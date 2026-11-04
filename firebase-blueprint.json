@@ -1,0 +1,148 @@
+{
+  "entities": {
+    "SiteConfig": {
+      "title": "SiteConfig",
+      "description": "Complete configuration for the portfolio website sections, navigation, appearance, social links, footer, and SEO.",
+      "type": "object",
+      "properties": {
+        "heroJson": { "type": "string", "description": "Serialized Hero section configuration" },
+        "aboutJson": { "type": "string", "description": "Serialized About section configuration" },
+        "servicesJson": { "type": "string", "description": "Serialized Services list configuration" },
+        "skillsJson": { "type": "string", "description": "Serialized Skills categories and items" },
+        "processJson": { "type": "string", "description": "Serialized Process steps configuration" },
+        "contactJson": { "type": "string", "description": "Serialized Contact section configuration" },
+        "socialJson": { "type": "string", "description": "Serialized Social Media links configuration" },
+        "appearanceJson": { "type": "string", "description": "Serialized Website Appearance & theme customization" },
+        "seoJson": { "type": "string", "description": "Serialized Global and Page SEO metadata" },
+        "navigationJson": { "type": "string", "description": "Serialized Header Navigation items" },
+        "footerJson": { "type": "string", "description": "Serialized Footer branding and links" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "ISO timestamp of last update" },
+        "updatedBy": { "type": "string", "description": "Admin UID who last saved" }
+      },
+      "required": [
+        "heroJson",
+        "aboutJson",
+        "servicesJson",
+        "skillsJson",
+        "processJson",
+        "contactJson",
+        "socialJson",
+        "appearanceJson",
+        "seoJson",
+        "navigationJson",
+        "footerJson",
+        "updatedAt",
+        "updatedBy"
+      ]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Portfolio project item with metadata, thumbnail, gallery screenshots, tags, and publish status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Slug / document identifier" },
+        "title": { "type": "string", "description": "Project display title" },
+        "cat": { "type": "string", "description": "Project category subtitle" },
+        "shortDesc": { "type": "string", "description": "Concise summary shown on project cards" },
+        "desc": { "type": "string", "description": "Full detailed project description" },
+        "img": { "type": "string", "description": "Featured thumbnail image URL or compressed data URI" },
+        "gallery": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional project screenshots"
+        },
+        "url": { "type": "string", "description": "Live project URL" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Technologies and tags"
+        },
+        "year": { "type": "string", "description": "Project completion year" },
+        "featured": { "type": "boolean", "description": "Whether displayed in featured homepage portfolio" },
+        "order": { "type": "number", "description": "Display sort order" },
+        "status": { "type": "string", "enum": ["published", "draft"], "description": "Publication status" },
+        "seoTitle": { "type": "string", "description": "Project-specific SEO title" },
+        "seoDesc": { "type": "string", "description": "Project-specific SEO description" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last modified timestamp" }
+      },
+      "required": [
+        "id",
+        "title",
+        "cat",
+        "shortDesc",
+        "desc",
+        "img",
+        "gallery",
+        "url",
+        "tags",
+        "year",
+        "featured",
+        "order",
+        "status",
+        "seoTitle",
+        "seoDesc",
+        "updatedAt"
+      ]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Audit log of recent admin actions displayed in the Admin Dashboard.",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "description": "Short action title" },
+        "section": { "type": "string", "description": "Affected website section" },
+        "actorEmail": { "type": "string", "description": "Admin identifier" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "ISO timestamp" }
+      },
+      "required": ["action", "section", "actorEmail", "createdAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized administrator account record created once during one-time setup.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "role": { "type": "string", "enum": ["admin"], "description": "User role" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["uid", "role", "createdAt"]
+    },
+    "SystemLock": {
+      "title": "SystemLock",
+      "description": "Immutable singleton lock preventing any additional admin account registration after one-time setup.",
+      "type": "object",
+      "properties": {
+        "initialized": { "type": "boolean", "description": "True once the single admin account is registered" },
+        "adminUid": { "type": "string", "description": "UID of the sole authorized administrator" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Setup completion timestamp" }
+      },
+      "required": ["initialized", "adminUid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/site_published/{docId}": {
+      "schema": { "$ref": "#/entities/SiteConfig" },
+      "description": "Publicly readable published website configuration (docId = 'main')"
+    },
+    "/site_draft/{docId}": {
+      "schema": { "$ref": "#/entities/SiteConfig" },
+      "description": "Admin-only working draft website configuration (docId = 'main')"
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Portfolio projects (published projects are public; drafts are admin-only)"
+    },
+    "/activity_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "Admin dashboard activity logs"
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Authorized admin user record (locked after one-time setup)"
+    },
+    "/system_lock/{lockId}": {
+      "schema": { "$ref": "#/entities/SystemLock" },
+      "description": "Singleton one-time admin setup lock (lockId = 'admin_setup')"
+    }
+  }
+}
