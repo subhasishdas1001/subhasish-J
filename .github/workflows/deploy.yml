@@ -38,7 +38,7 @@ jobs:
       - name: Build Website
         run: bun run build
 
-      - name: Upload Website Artifact
+      - name: Upload Website
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
@@ -46,16 +46,10 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     runs-on: ubuntu-latest
     needs: build
 
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Deploy
-        id: deployment
+      - name: Deploy Website
         uses: actions/deploy-pages@v4
